@@ -1,39 +1,190 @@
-AWSTemplateFormatVersion: '2010-09-09'
+AWSTemplateFormatVersion: "2010-09-09"
 Transform: AWS::Serverless-2016-10-31
 Description: >
-  bama_headcounts
+  lambda example for email contact services y una api restful CRUD
 
-  Sample SAM Template for bama_headcounts
+  Servicio lambda para envío de correo de contacto, guardado en tabla dynamo, y ejemplo de servicio RESTFUL
+
 
 # More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
 Globals:
   Function:
-    Timeout: 3
+    Timeout: 5
+    Environment:
+      Variables:
+        ALLOWED_ORIGINS: "*"
+        TIME_ZONE: "America/Mexico_City"
+        AMAZON_REGION: !Ref AWS::Region
+        ENV: stage
+        DYNAMO_DB_LOCAL_URL: 'localhost:8888'
+        WORKSHOP_TABLE: stack-table-name-WorkshopTable
+        EMAIL_CONTACT_TABLE: stack-table-name-EmailContactTable
+
 
 Resources:
-  HelloWorldFunction:
-    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+  #############################################################
+  ## API Definition
+  StageApi:
+    Type: AWS::Serverless::Api
     Properties:
-      CodeUri: hello_world/
-      Handler: app.lambda_handler
+      StageName: Development
+      Cors:
+        AllowOrigin: "'*'"
+        AllowMethods: "'GET, POST, PATCH, DELETE, OPTIONS'"
+        AllowHeaders: "'Content-Type'"
+
+  #########################################################
+  ## LAMBDA SERVICES
+  WorkshopCreateFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Policies: AmazonDynamoDBFullAccess
+      CodeUri: lambdas/workshops/
+      Handler: create.handler
+      Runtime: python3.8
+      Timeout: 100
+      Events:
+        WorkshopCreate:
+          Type: Api
+          Properties:
+            RestApiId: !Ref StageApi
+            Path: /workshop
+            Method: post
+
+  WorkshopListFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Policies: AmazonDynamoDBFullAccess
+      CodeUri: lambdas/workshops/
+      Handler: list.handler
+      Runtime: python3.8
+      Timeout: 100
+      Events:
+        WorkshopList:
+          Type: Api
+          Properties:
+            RestApiId: !Ref StageApi
+            Path: /workshop
+            Method: get
+
+  WorkshopShowFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Policies: AmazonDynamoDBFullAccess
+      CodeUri: lambdas/workshops/
+      Handler: show.handler
+      Runtime: python3.8
+      Timeout: 100
+      Events:
+        WorkshopShow:
+          Type: Api
+          Properties:
+            RestApiId: !Ref StageApi
+            Path: /workshop/{workshopId}
+            Method: get
+
+  WorkshopUpdateFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Policies: AmazonDynamoDBFullAccess
+      CodeUri: lambdas/workshops/
+      Handler: update.handler
+      Runtime: python3.8
+      Timeout: 100
+      Events:
+        WorkshopUpdate:
+          Type: Api
+          Properties:
+            RestApiId: !Ref StageApi
+            Path: /workshop/{workshopId}
+            Method: patch
+
+  WorkshopDeleteFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Policies: AmazonDynamoDBFullAccess
+      CodeUri: lambdas/workshops/
+      Handler: delete.handler
       Runtime: python3.8
       Events:
-        HelloWorld:
-          Type: Api # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
+        WorkshopDelete:
+          Type: Api
           Properties:
-            Path: /hello
-            Method: get
+            RestApiId: !Ref StageApi
+            Path: /workshop/{workshopId}
+            Method: delete
+
+  EmailContactCreateFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Policies:
+        - AmazonDynamoDBFullAccess
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - 'ses:SendEmail'
+                - 'ses:SendRawEmail'
+              Resource: '*'
+      CodeUri: lambdas/emails/
+      Handler: contact.handler
+      Runtime: python3.8
+      Timeout: 100
+      Events:
+        EmailContactCreate:
+          Type: Api
+          Properties:
+            RestApiId: !Ref StageApi
+            Path: /email/contact
+            Method: post
+
+
+  #########################################################
+  ## DYNAMO TABLES
+  WorkshopTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      ProvisionedThroughput:
+        ReadCapacityUnits: 1
+        WriteCapacityUnits: 1
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+
+  EmailContactTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      ProvisionedThroughput:
+        ReadCapacityUnits: 1
+        WriteCapacityUnits: 1
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+        - AttributeName: created_at
+          AttributeType: S
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: email_contact_created_at_index
+          KeySchema:
+            - AttributeName: created_at
+              KeyType: HASH
+          ProvisionedThroughput:
+            WriteCapacityUnits: 1
+            ReadCapacityUnits: 1
+          Projection:
+            NonKeyAttributes: []
+            ProjectionType: ALL
+
 
 Outputs:
   # ServerlessRestApi is an implicit API created out of Events key under Serverless::Function
   # Find out more about other implicit resources you can reference within SAM
   # https://github.com/awslabs/serverless-application-model/blob/master/docs/internals/generated_resources.rst#api
-  HelloWorldApi:
-    Description: "API Gateway endpoint URL for Prod stage for Hello World function"
-    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/hello/"
-  HelloWorldFunction:
-    Description: "Hello World Lambda Function ARN"
-    Value: !GetAtt HelloWorldFunction.Arn
-  HelloWorldFunctionIamRole:
-    Description: "Implicit IAM Role created for Hello World function"
-    Value: !GetAtt HelloWorldFunctionRole.Arn
+  WebServicesApi:
+    Description: "API Gateway endpoint URL for Prod stage for webservices"
+    Value: !Sub "https://${StageApi}.execute-api.${AWS::Region}.amazonaws.com/Development/"

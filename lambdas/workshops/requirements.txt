@@ -1,0 +1,4 @@
+pynamodb==4.2.0
+aws_lambda_cors==0.0.3
+flask-inputs==0.3.0
+jsonschema==3.2.0
