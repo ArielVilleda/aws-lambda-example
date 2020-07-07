@@ -17,7 +17,7 @@ def send_contact_mail(contact_item:object):
     # is still in the sandbox, this address must be verified.
     email_body['recipient_list'] = ["ariel@quesadillalab.mx"]
     # The subject line for the email.
-    email_body['subject'] = "Conjunto Estadio Azteca | Contacto"
+    email_body['subject'] = "Empresa | Contacto"
 
     # The email body for recipients with non-HTML email clients.
     email_body['body_text'] = """
@@ -33,7 +33,7 @@ def send_contact_mail(contact_item:object):
     email_body['body_html'] = """<html>
     <head></head>
     <body>
-        <h1>CONTACTO CONJUNTO ESTADIO AZTECA</h1>
+        <h1>EMAIL DE CONTACTO - EMPRESA</h1>
         <ul>
         <li>Nombre: {0}</li>
         <li>Correo: {1}</li>

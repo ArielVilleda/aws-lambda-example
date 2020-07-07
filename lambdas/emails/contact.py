@@ -9,10 +9,10 @@ def handler(event, context):
         'url': /email/contact
         'type': POST
         'body':{
-            "email" : "ariel.mvilleda@gmail.com",
-            "name" : "Ariel Villeda",
-            "phone" : "20200606",
-            "message" : "Todo Shiido, Man"
+            "email" : "email@example.com",
+            "name" : "Gus Rodriguez",
+            "phone" : "55555555",
+            "message" : "¡Estamos en CONTACT!"
         }
     """
 
